@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const App = () => {
   const [data, setData] = useState([]);
@@ -10,26 +11,39 @@ const App = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const ab = e.target.result;
-      const wb = XLSX.read(ab, { type: 'array', cellStyles: true }); // Enable cellStyles
+      const wb = XLSX.read(ab, { type: 'array', cellStyles: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-      // Always include Row 2 (index 1), Row 3 (index 2), Row 4 (index 3)
-      // And filter other rows where "SWF" is present in Column A (index 0)
       const filteredData = jsonData.filter((row, index) => {
-        return index === 1 || index === 2 || index === 3 || (row[0] && row[0].includes("SWF"));
+        return (
+          index === 1 ||
+          index === 2 ||
+          (row[1] && (row[1].includes("BasiX") || row[1].includes("FieldService")))
+        );
       });
+
+      if (filteredData[0]) filteredData[0].unshift('');
+      if (filteredData[1]) filteredData[1].unshift('');
 
       const newCellStyles = {};
 
-      // Iterate over the filtered rows
+      if (filteredData[2]) {
+        const row3 = filteredData[2];
+        for (let i = 2; i < row3.length - 1; i++) {
+          if (row3[i] !== row3[i + 1]) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 2, c: i });
+            newCellStyles[cellAddress] = 'blue';
+          }
+        }
+      }
+
       filteredData.forEach((row, rowIndex) => {
-        // Only apply the comparison logic for rows that contain "SWF"
-        if (row[0] && row[0].includes("SWF")) {
-          for (let i = 2; i < row.length - 1; i++) { // Start comparison from column 3 (index 2)
+        if (row[1] && (row[1].includes("BasiX") || row[1].includes("FieldService"))) {
+          for (let i = 2; i < row.length - 1; i++) {
             if (row[i] !== row[i + 1]) {
               const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: i });
-              newCellStyles[cellAddress] = 'blue'; // Mark the cell with blue background
+              newCellStyles[cellAddress] = 'blue';
             }
           }
         }
@@ -42,12 +56,39 @@ const App = () => {
   };
 
   const getCellStyle = (rowIndex, cellIndex) => {
-    // Skip applying color to column 1 (index 0) and column 2 (index 1)
     if (cellIndex === 0 || cellIndex === 1) {
-      return 'white'; // Default color for these columns
+      return 'white';
     }
-    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: cellIndex }); // +1 for header row offset
-    return cellStyles[cellAddress] || 'white'; // Default color is white if no style
+    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: cellIndex });
+    return cellStyles[cellAddress] || 'white';
+  };
+
+  const getRow3DataWithStyles = () => {
+    if (data.length <= 2) return [];
+    return data[2].map((cell, index) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: 2, c: index });
+      return {
+        value: cell,
+        bgColor: cellStyles[cellAddress] || 'white'
+      };
+    });
+  };
+
+  const getGroupedChartData = () => {
+    const row3Data = getRow3DataWithStyles();
+    const groupedData = [];
+    
+    for (let i = 3; i < row3Data.length; i += 7) {
+      const group = row3Data.slice(i, i + 7);
+      const blueCount = group.filter(cell => cell.bgColor === 'blue').length;
+      groupedData.push({
+        name: `Cells ${i + 1}-${Math.min(i + 7, row3Data.length)}`,
+        value: blueCount,
+        totalCells: group.length
+      });
+    }
+    
+    return groupedData;
   };
 
   return (
@@ -55,7 +96,7 @@ const App = () => {
       <h1>Excel Dashboard</h1>
       <input
         type="file"
-        accept=".xlsx, .xls"
+        accept=".xlsm,.xlsx, .xls"
         onChange={(event) => handleFileChange(event.target.files[0])}
       />
       {data.length > 0 && (
@@ -88,6 +129,42 @@ const App = () => {
           </tbody>
         </table>
       )}
+      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ddd' }}>
+        <h2>Row 3 Data:</h2>
+        {getRow3DataWithStyles().map((cell, index) => (
+          <div key={index} style={{ backgroundColor: cell.bgColor, padding: '5px', display: 'inline-block', margin: '2px' }}>
+            {cell.value}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ddd' }}>
+        <h2>Grouped Bar Chart (Blue Cells Count):</h2>
+        <div style={{ width: '100%', height: 400 }}>
+          <ResponsiveContainer>
+            <BarChart data={getGroupedChartData()}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div style={{ backgroundColor: '#fff', padding: '5px', border: '1px solid #999' }}>
+                        <p>{`${label}`}</p>
+                        <p>{`Blue Cells: ${data.value}`}</p>
+                        <p>{`Total Cells: ${data.totalCells}`}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="value" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 };
