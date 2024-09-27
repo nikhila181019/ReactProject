@@ -106,10 +106,10 @@ const App = () => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div style={{ backgroundColor: '#fff', padding: '5px', border: '1px solid #999' }}>
-          <p>{`${label}`}</p>
-          <p>{`Blue Cells: ${data.value}`}</p>
-          <p>{`Total Cells: ${data.totalCells}`}</p>
+        <div style={{ backgroundColor: '#fff', padding: '10px', border: '1px solid #999', borderRadius: '4px' }}>
+          <p style={{ margin: '0', fontWeight: 'bold' }}>{`${label}`}</p>
+          <p style={{ margin: '5px 0 0' }}>{`Blue Cells: ${data.value}`}</p>
+          <p style={{ margin: '5px 0 0' }}>{`Total Cells: ${data.totalCells}`}</p>
         </div>
       );
     }
@@ -124,39 +124,65 @@ const App = () => {
         accept=".xlsm,.xlsx, .xls"
         onChange={(event) => handleFileChange(event.target.files[0])}
       />
-      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ddd', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-        <h2 style={{ margin: 0 }}>PDC Promotion:</h2>
-        <div style={{ width: '90%', height: '100%' }}>
+      <div style={{ 
+        marginTop: '20px', 
+        padding: '20px', 
+        border: '1px solid #ddd', 
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '600px',
+        width: '95%',
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
+        <h2 style={{ margin: '0 0 20px 0', fontSize: '24px' }}>PDC Promotion:</h2>
+        <div style={{ width: '100%', height: '90%' }}>
           <ResponsiveContainer>
             <BarChart
               data={getGroupedChartData()}
-              barSize={40}
-              barGap={15}
-              barCategoryGap="20%"
+              barSize={60}
+              barGap={10}
+              barCategoryGap="15%"
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             >
-              <CartesianGrid vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis 
                 domain={[0, 5]} 
                 tickCount={6} 
-                label={{ value: 'PDC Promoted', angle: -90, position: 'insideLeft', offset: 10 }}
+                label={{ value: 'PDC Promoted', angle: -90, position: 'insideLeft', offset: -5 }}
               />
-              <Tooltip content={<CustomTooltip />} cursor={false} />
-              <Bar dataKey="value" fill="#8884d8">
+              <Tooltip 
+                content={<CustomTooltip />} 
+                cursor={false}
+              />
+              <Bar 
+                dataKey="value" 
+                fill="#4CAF50"
+                onMouseEnter={(data, index) => {
+                  // You can add custom behavior here when mouse enters a bar
+                }}
+                onMouseLeave={(data, index) => {
+                  // You can add custom behavior here when mouse leaves a bar
+                }}
+              >
                 <LabelList content={<CustomizedLabel />} position="top" />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          {/* Custom Legend Below X Axis */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px' }}>
-              <span style={{ backgroundColor: 'red', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
-              <span>PDC Promotion &lt; 0</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ backgroundColor: 'green', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
-              <span>PDC Promotion &gt; 0</span>
-            </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px' }}>
+            <span style={{ backgroundColor: 'red', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
+            <span>PDC Promotion &lt; 0</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ backgroundColor: 'green', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
+            <span>PDC Promotion &gt; 0</span>
           </div>
         </div>
       </div>
