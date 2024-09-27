@@ -139,7 +139,8 @@ const App = () => {
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        <h2 style={{ margin: '0 0 20px 0', fontSize: '24px' }}>PDC Promotion:</h2>
+        <h2 style={{ margin: '0 0 20px 0', fontSize: '24px' }}>PDC Promotion</h2>
+        <h2 style={{ margin: '0 0 20px 0', fontSize: '24px' }}>Last 7 Weeks Data</h2>
         <div style={{ width: '100%', height: '90%' }}>
           <ResponsiveContainer>
             <BarChart
