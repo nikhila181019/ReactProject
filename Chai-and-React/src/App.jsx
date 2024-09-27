@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 const App = () => {
   const [data, setData] = useState([]);
@@ -55,14 +55,6 @@ const App = () => {
     reader.readAsArrayBuffer(file);
   };
 
-  const getCellStyle = (rowIndex, cellIndex) => {
-    if (cellIndex === 0 || cellIndex === 1) {
-      return 'white';
-    }
-    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: cellIndex });
-    return cellStyles[cellAddress] || 'white';
-  };
-
   const getRow3DataWithStyles = () => {
     if (data.length <= 2) return [];
     return data[2].map((cell, index) => {
@@ -77,7 +69,7 @@ const App = () => {
   const getGroupedChartData = () => {
     const row3Data = getRow3DataWithStyles();
     const groupedData = [];
-    
+
     for (let i = 3; i < row3Data.length; i += 7) {
       const group = row3Data.slice(i, i + 7);
       const blueCount = group.filter(cell => cell.bgColor === 'blue').length;
@@ -86,9 +78,42 @@ const App = () => {
         value: blueCount,
         totalCells: group.length
       });
+
+      if (groupedData.length >= 7) break; // Limit to the first 7 groups (weeks)
     }
-    
+
     return groupedData;
+  };
+
+  const CustomizedLabel = (props) => {
+    const { x, y, width, value } = props;
+    return (
+      <text
+        x={x + width / 2}
+        y={y - 10}
+        fill={value > 0 ? "green" : "red"}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize={16}
+        fontWeight="bold"
+      >
+        {value}
+      </text>
+    );
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div style={{ backgroundColor: '#fff', padding: '5px', border: '1px solid #999' }}>
+          <p>{`${label}`}</p>
+          <p>{`Blue Cells: ${data.value}`}</p>
+          <p>{`Total Cells: ${data.totalCells}`}</p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -99,70 +124,40 @@ const App = () => {
         accept=".xlsm,.xlsx, .xls"
         onChange={(event) => handleFileChange(event.target.files[0])}
       />
-      {data.length > 0 && (
-        <table style={{ marginTop: '20px', borderCollapse: 'collapse', width: '100%' }}>
-          <thead>
-            <tr>
-              {data[0] && data[0].map((header, index) => (
-                <th key={index} style={{ border: '1px solid #ddd', padding: '8px' }}>{header}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.slice(1).map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => (
-                  <td
-                    key={cellIndex}
-                    style={{
-                      border: '1px solid #ddd',
-                      padding: '8px',
-                      backgroundColor: getCellStyle(rowIndex, cellIndex),
-                      color: getCellStyle(rowIndex, cellIndex) === 'blue' ? 'white' : 'black'
-                    }}
-                  >
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ddd' }}>
-        <h2>Row 3 Data:</h2>
-        {getRow3DataWithStyles().map((cell, index) => (
-          <div key={index} style={{ backgroundColor: cell.bgColor, padding: '5px', display: 'inline-block', margin: '2px' }}>
-            {cell.value}
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ddd' }}>
-        <h2>Grouped Bar Chart (Blue Cells Count):</h2>
-        <div style={{ width: '100%', height: 400 }}>
+      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ddd', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <h2 style={{ margin: 0 }}>PDC Promotion:</h2>
+        <div style={{ width: '90%', height: '100%' }}>
           <ResponsiveContainer>
-            <BarChart data={getGroupedChartData()}>
-              <CartesianGrid strokeDasharray="3 3" />
+            <BarChart
+              data={getGroupedChartData()}
+              barSize={40}
+              barGap={15}
+              barCategoryGap="20%"
+            >
+              <CartesianGrid vertical={false} />
               <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <div style={{ backgroundColor: '#fff', padding: '5px', border: '1px solid #999' }}>
-                        <p>{`${label}`}</p>
-                        <p>{`Blue Cells: ${data.value}`}</p>
-                        <p>{`Total Cells: ${data.totalCells}`}</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
+              <YAxis 
+                domain={[0, 5]} 
+                tickCount={6} 
+                label={{ value: 'PDC Promoted', angle: -90, position: 'insideLeft', offset: 10 }}
               />
-              <Bar dataKey="value" fill="#8884d8" />
+              <Tooltip content={<CustomTooltip />} cursor={false} />
+              <Bar dataKey="value" fill="#8884d8">
+                <LabelList content={<CustomizedLabel />} position="top" />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
+          {/* Custom Legend Below X Axis */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px' }}>
+              <span style={{ backgroundColor: 'red', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
+              <span>PDC Promotion &lt; 0</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ backgroundColor: 'green', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
+              <span>PDC Promotion &gt; 0</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
