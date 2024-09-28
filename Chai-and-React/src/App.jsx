@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
@@ -7,52 +7,62 @@ const App = () => {
   const [data, setData] = useState([]);
   const [cellStyles, setCellStyles] = useState({});
 
-  const handleFileChange = (file) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const ab = e.target.result;
-      const wb = XLSX.read(ab, { type: 'array', cellStyles: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  useEffect(() => {
+    fetchExcelFile();
+  }, []);
 
-      const filteredData = jsonData.filter((row, index) => {
-        return (
-          index === 1 ||
-          index === 2 ||
-          (row[1] && (row[1].includes("BasiX") || row[1].includes("FieldService")))
-        );
-      });
+  const fetchExcelFile = async () => {
+    try {
+      const response = await fetch('/Azurion3.2_PDCStatusReport 1.xlsx');
+      const arrayBuffer = await response.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
+      processExcelData(data);
+    } catch (error) {
+      console.error('Error fetching the Excel file:', error);
+    }
+  };
 
-      if (filteredData[0]) filteredData[0].unshift('');
-      if (filteredData[1]) filteredData[1].unshift('');
+  const processExcelData = (data) => {
+    const wb = XLSX.read(data, { type: 'array', cellStyles: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-      const newCellStyles = {};
+    const filteredData = jsonData.filter((row, index) => {
+      return (
+        index === 1 ||
+        index === 2 ||
+        (row[1] && (row[1].includes("BasiX") || row[1].includes("FieldService")))
+      );
+    });
 
-      if (filteredData[2]) {
-        const row3 = filteredData[2];
-        for (let i = 2; i < row3.length - 1; i++) {
-          if (row3[i] !== row3[i + 1]) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 2, c: i });
+    if (filteredData[0]) filteredData[0].unshift('');
+    if (filteredData[1]) filteredData[1].unshift('');
+
+    const newCellStyles = {};
+
+    if (filteredData[2]) {
+      const row3 = filteredData[2];
+      for (let i = 2; i < row3.length - 1; i++) {
+        if (row3[i] !== row3[i + 1]) {
+          const cellAddress = XLSX.utils.encode_cell({ r: 2, c: i });
+          newCellStyles[cellAddress] = 'blue';
+        }
+      }
+    }
+
+    filteredData.forEach((row, rowIndex) => {
+      if (row[1] && (row[1].includes("BasiX") || row[1].includes("FieldService"))) {
+        for (let i = 2; i < row.length - 1; i++) {
+          if (row[i] !== row[i + 1]) {
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: i });
             newCellStyles[cellAddress] = 'blue';
           }
         }
       }
+    });
 
-      filteredData.forEach((row, rowIndex) => {
-        if (row[1] && (row[1].includes("BasiX") || row[1].includes("FieldService"))) {
-          for (let i = 2; i < row.length - 1; i++) {
-            if (row[i] !== row[i + 1]) {
-              const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: i });
-              newCellStyles[cellAddress] = 'blue';
-            }
-          }
-        }
-      });
-
-      setData(filteredData);
-      setCellStyles(newCellStyles);
-    };
-    reader.readAsArrayBuffer(file);
+    setData(filteredData);
+    setCellStyles(newCellStyles);
   };
 
   const getRow3DataWithStyles = () => {
@@ -69,21 +79,26 @@ const App = () => {
   const getGroupedChartData = () => {
     const row3Data = getRow3DataWithStyles();
     const groupedData = [];
-
-    for (let i = 3; i < row3Data.length; i += 7) {
+  
+    const startingWeek = 83; // Assume Week 83 as the latest
+  
+    for (let i = 3, week = startingWeek; i < row3Data.length; i += 7, week--) {
       const group = row3Data.slice(i, i + 7);
       const blueCount = group.filter(cell => cell.bgColor === 'blue').length;
+      
+      // Multiply the blueCount value by 2 before adding it to groupedData
       groupedData.push({
-        name: `Cells ${i + 1}-${Math.min(i + 7, row3Data.length)}`,
-        value: blueCount,
+        name: `Week ${week}`,
+        value: blueCount * 2, // Multiply by 2
         totalCells: group.length
       });
-
+  
       if (groupedData.length >= 7) break; // Limit to the first 7 groups (weeks)
     }
-
+  
     return groupedData;
   };
+  
 
   const CustomizedLabel = (props) => {
     const { x, y, width, value } = props;
@@ -118,12 +133,7 @@ const App = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h1>Excel Dashboard</h1>
-      <input
-        type="file"
-        accept=".xlsm,.xlsx, .xls"
-        onChange={(event) => handleFileChange(event.target.files[0])}
-      />
+      <h1>PDC Status</h1>
       <div style={{ 
         marginTop: '20px', 
         padding: '20px', 
@@ -153,7 +163,7 @@ const App = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis 
-                domain={[0, 5]} 
+                domain={[0, 10]} // Adjusted to account for the doubled values
                 tickCount={6} 
                 label={{ value: 'PDC Promoted', angle: -90, position: 'insideLeft', offset: -5 }}
               />
@@ -164,12 +174,6 @@ const App = () => {
               <Bar 
                 dataKey="value" 
                 fill="#4CAF50"
-                onMouseEnter={(data, index) => {
-                  // You can add custom behavior here when mouse enters a bar
-                }}
-                onMouseLeave={(data, index) => {
-                  // You can add custom behavior here when mouse leaves a bar
-                }}
               >
                 <LabelList content={<CustomizedLabel />} position="top" />
               </Bar>
@@ -179,7 +183,7 @@ const App = () => {
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px' }}>
             <span style={{ backgroundColor: 'red', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
-            <span>PDC Promotion &lt; 0</span>
+            <span>PDC Promotion = 0</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <span style={{ backgroundColor: 'green', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-block', marginRight: '5px' }}></span>
@@ -189,6 +193,6 @@ const App = () => {
       </div>
     </div>
   );
-};
+}  
 
 export default App;
